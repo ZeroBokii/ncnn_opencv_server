@@ -1,0 +1,5 @@
+build/
+lib/
+workspace/models/*
+!workspace/models/model.json
+start.sh

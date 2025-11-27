@@ -1,0 +1,10 @@
+{
+    "config_mapping": {
+        "camera_top": {
+            "alg": [
+                "noodle"
+            ],
+            "watcher": "/home/torch/images/pose"
+        }
+    }
+}
