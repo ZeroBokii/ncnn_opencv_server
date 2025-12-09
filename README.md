@@ -79,6 +79,12 @@
 - **彩色控制台输出**：提升可读性
 - **自动归档**：按时间戳生成日志文件
 
+### 6. HTTP API 控制接口
+
+- **推理开关控制**：通过 REST API 动态开启/关闭推理功能
+- **线程安全**：原子操作保证并发安全
+- **即时生效**：无需重启服务
+
 ---
 
 ## 🏗️ 系统架构
@@ -187,6 +193,7 @@
 | **JSON 解析** | nlohmann_json | >= 3.0 | 配置和结果序列化 |
 | **文件监听** | inotify-cpp | latest | Linux 文件监控 |
 | **HTTP 客户端** | libcurl | latest | 外部 API 调用 |
+| **HTTP 服务器** | cpp-httplib | latest | REST API 服务 |
 | **并行计算** | OpenMP | latest | 多线程加速 |
 
 ---
@@ -239,12 +246,18 @@ ncnn_opencv_server/
 │   │   ├── FileWatcher.hpp    # 文件监听器
 │   │   └── FileWatcher.cpp
 │   │
+│   ├── api/                   # HTTP API 模块
+│   │   ├── HttpApiServer.hpp  # HTTP 服务器
+│   │   ├── HttpApiServer.cpp
+│   │   └── InferenceSwitch.hpp # 推理开关控制
+│   │
 │   └── tools/                 # 工具类
 │       ├── Utils.hpp          # 通用工具函数
 │       ├── Utils.cpp
 │       └── LazyFileSink.hpp   # 延迟日志文件 sink
 │
 ├── lib/                       # 第三方库
+│   ├── httplib.h              # cpp-httplib 头文件
 │   ├── install_ncnn/          # NCNN 库文件
 │   ├── install_inotify/       # inotify-cpp 库文件
 │   └── install_spdlog/        # spdlog 库文件
@@ -461,6 +474,59 @@ lazy_sink->set_level(spdlog::level::err);
 // 全局日志级别
 spdlog::set_level(spdlog::level::debug);
 ```
+
+---
+
+## 🌐 HTTP API 接口
+
+系统启动后会在 `8080` 端口提供 HTTP API 服务，用于运行时控制推理功能。
+
+### 推理开关控制
+
+**POST** `/api/inference/toggle`
+
+切换推理功能的开启/关闭状态。
+
+**请求体：**
+```json
+{
+    "enabled": true
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `enabled` | boolean | `true` 开启推理，`false` 关闭推理 |
+
+**响应示例：**
+```json
+{
+    "success": true,
+    "message": "Inference enabled",
+    "data": {
+        "inference_enabled": true
+    }
+}
+```
+
+**使用示例：**
+
+```bash
+# 关闭推理
+curl -X POST http://localhost:8080/api/inference/toggle \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# 开启推理
+curl -X POST http://localhost:8080/api/inference/toggle \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+```
+
+**说明：**
+- 推理关闭后，文件监听仍然运行，但不会执行推理
+- 状态切换即时生效，无需重启服务
+- 默认状态为开启
 
 ---
 

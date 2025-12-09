@@ -18,6 +18,8 @@
 #include "inotify/FileWatcher.hpp"
 #include "tools/Utils.hpp"
 #include "tools/LazyFileSink.hpp"
+#include "api/HttpApiServer.hpp"
+#include "api/InferenceSwitch.hpp"
 
 static std::chrono::steady_clock::time_point g_last_pause_time;
 static std::mutex g_pause_mutex;
@@ -39,7 +41,6 @@ void handleInferenceResult(
     // 如果有检测结果，保存可视化图像
     if (result.contains("detections") && !result["detections"].empty()) {
         Utils::saveVisualization(image, result, camera_id, algorithm_name);
-        
         /*
         // 防止短时间重复发送
         std::lock_guard<std::mutex> lock(g_pause_mutex);
@@ -132,10 +133,20 @@ void run(){
         return;
     }
     
+    // 启动 HTTP API 服务器（用于推理开关控制）
+    auto http_server = std::make_unique<HttpApiServer>("0.0.0.0", 8080);
+    if (http_server->start()) {
+        spdlog::info("✓ HTTP API 服务器已启动");
+        spdlog::info("  - POST http://localhost:8080/api/inference/toggle");
+    } else {
+        spdlog::warn("HTTP API 服务器启动失败");
+    }
+    
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(60));
-        spdlog::debug("系统运行中，活跃相机: {}", 
-                     multi_camera_manager->getActiveCameraCount());
+        spdlog::debug("系统运行中，活跃相机: {}，推理状态: {}", 
+                     multi_camera_manager->getActiveCameraCount(),
+                     InferenceSwitch::getInstance().isEnabled() ? "enabled" : "disabled");
     }
 }
 

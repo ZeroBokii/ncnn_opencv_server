@@ -148,7 +148,7 @@ bool Utils::httpPost(const std::string& url) {
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);  // 增加超时时间到5秒
     
     CURLcode res = curl_easy_perform(curl);
     

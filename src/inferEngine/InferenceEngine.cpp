@@ -1,4 +1,5 @@
 #include "InferenceEngine.hpp"
+#include "../api/InferenceSwitch.hpp"
 
 InferenceEngine::InferenceEngine(std::shared_ptr<AlgorithmManager> algorithm_mgr)
     : algorithm_manager_(std::move(algorithm_mgr))
@@ -82,6 +83,12 @@ void InferenceEngine::updateMapping(
 std::vector<nlohmann::json> InferenceEngine::inferFrame(
     const std::string& camera_id, 
     const cv::Mat& frame) {
+    
+    // 检查推理开关状态
+    if (!InferenceSwitch::getInstance().isEnabled()) {
+        spdlog::debug("Inference disabled, skipping frame for camera '{}'", camera_id);
+        return {};
+    }
     
     if (frame.empty()) {
         spdlog::error("Empty frame for camera '{}'", camera_id);

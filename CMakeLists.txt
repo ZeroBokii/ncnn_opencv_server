@@ -17,6 +17,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/lib/install_ncnn/include/ncnn
     ${PROJECT_SOURCE_DIR}/lib/install_inotify/include
     ${PROJECT_SOURCE_DIR}/lib/install_spdlog/include
+    ${PROJECT_SOURCE_DIR}/lib
     ${OPENCV_INCLUDE_DIRS}
 )
 link_directories(
