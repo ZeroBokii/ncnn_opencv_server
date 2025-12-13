@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include <curl/curl.h>
+#include <httplib.h>
 #include <cmath>
 
 bool Utils::saveVisualization(
@@ -139,34 +139,53 @@ bool Utils::pausePrinter(const std::string& moonraker_url) {
 }
 
 bool Utils::httpPost(const std::string& url) {
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        spdlog::error("Failed to initialize CURL");
-        return false;
-    }
-    
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);  // 增加超时时间到5秒
-    
-    CURLcode res = curl_easy_perform(curl);
-    
-    long http_code = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    
-    curl_easy_cleanup(curl);
-    
-    if (res != CURLE_OK) {
-        spdlog::error("HTTP POST failed: {} ({})", curl_easy_strerror(res), url);
-        return false;
-    }
-    
-    if (http_code >= 200 && http_code < 300) {
-        spdlog::debug("HTTP POST {} - Status: {}", url, http_code);
-        return true;
-    } else {
-        spdlog::error("HTTP POST {} failed with status {}", url, http_code);
+    try {
+        // 解析URL (例如: http://localhost:7125/printer/print/pause)
+        std::string host, path;
+        int port = 80;
+        
+        if (url.find("http://") == 0) {
+            std::string temp = url.substr(7); // 去掉 "http://"
+            size_t slash_pos = temp.find('/');
+            if (slash_pos != std::string::npos) {
+                std::string host_port = temp.substr(0, slash_pos);
+                path = temp.substr(slash_pos);
+                
+                size_t colon_pos = host_port.find(':');
+                if (colon_pos != std::string::npos) {
+                    host = host_port.substr(0, colon_pos);
+                    port = std::stoi(host_port.substr(colon_pos + 1));
+                } else {
+                    host = host_port;
+                    port = 80;
+                }
+            }
+        } else {
+            spdlog::error("Unsupported URL format: {}", url);
+            return false;
+        }
+        
+        httplib::Client cli(host, port);
+        cli.set_connection_timeout(5, 0); // 5秒超时
+        cli.set_read_timeout(5, 0);
+        
+        auto res = cli.Post(path, "", "application/json");
+        
+        if (res) {
+            if (res->status >= 200 && res->status < 300) {
+                spdlog::debug("HTTP POST {} - Status: {}", url, res->status);
+                return true;
+            } else {
+                spdlog::error("HTTP POST {} failed with status {}", url, res->status);
+                return false;
+            }
+        } else {
+            spdlog::error("HTTP POST {} failed - no response", url);
+            return false;
+        }
+        
+    } catch (const std::exception& e) {
+        spdlog::error("HTTP POST failed: {} ({})", e.what(), url);
         return false;
     }
 }

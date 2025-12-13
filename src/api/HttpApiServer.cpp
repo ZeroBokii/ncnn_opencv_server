@@ -16,8 +16,6 @@ HttpApiServer::~HttpApiServer() {
 }
 
 void HttpApiServer::setupRoutes() {
-    // POST /api/inference/toggle - 切换推理状态
-    // 请求体: {"enabled": true} 或 {"enabled": false}
     server_->Post("/api/inference/toggle", [](const httplib::Request& req, httplib::Response& res) {
         try {
             auto body = nlohmann::json::parse(req.body);
@@ -68,10 +66,8 @@ bool HttpApiServer::start() {
         return false;
     }
     
-    // 在独立线程中启动服务器
     server_thread_ = std::thread(&HttpApiServer::serverThreadFunc, this);
     
-    // 等待服务器启动
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     if (is_running_.load()) {

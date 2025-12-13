@@ -23,43 +23,21 @@
  */
 class HttpApiServer {
 public:
-    /**
-     * @brief 构造函数
-     * @param host 监听地址，默认 "0.0.0.0"
-     * @param port 监听端口，默认 8080
-     */
     explicit HttpApiServer(const std::string& host = "0.0.0.0", int port = 8080);
     
     ~HttpApiServer();
     
-    // 禁用拷贝
     HttpApiServer(const HttpApiServer&) = delete;
     HttpApiServer& operator=(const HttpApiServer&) = delete;
     
-    /**
-     * @brief 启动 HTTP 服务器（非阻塞，在独立线程中运行）
-     * @return true 如果启动成功
-     */
     bool start();
     
-    /**
-     * @brief 停止 HTTP 服务器
-     */
     void stop();
     
-    /**
-     * @brief 检查服务器是否正在运行
-     */
     bool isRunning() const { return is_running_.load(); }
     
-    /**
-     * @brief 获取监听端口
-     */
     int getPort() const { return port_; }
     
-    /**
-     * @brief 获取监听地址
-     */
     std::string getHost() const { return host_; }
 
 private:

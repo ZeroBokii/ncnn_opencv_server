@@ -1,5 +1,6 @@
 #include "InferenceEngine.hpp"
 #include "../api/InferenceSwitch.hpp"
+#include <set>
 
 InferenceEngine::InferenceEngine(std::shared_ptr<AlgorithmManager> algorithm_mgr)
     : algorithm_manager_(std::move(algorithm_mgr))

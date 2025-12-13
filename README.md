@@ -192,8 +192,7 @@
 | **日志库** | spdlog | latest | 高性能日志 |
 | **JSON 解析** | nlohmann_json | >= 3.0 | 配置和结果序列化 |
 | **文件监听** | inotify-cpp | latest | Linux 文件监控 |
-| **HTTP 客户端** | libcurl | latest | 外部 API 调用 |
-| **HTTP 服务器** | cpp-httplib | latest | REST API 服务 |
+| **HTTP 库** | cpp-httplib | latest | REST API 服务 & HTTP 客户端 |
 | **并行计算** | OpenMP | latest | 多线程加速 |
 
 ---
@@ -206,76 +205,49 @@ ncnn_opencv_server/
 ├── README.md                   # 项目说明文档（本文件）
 ├── DEPLOYMENT.md               # 部署和服务配置指南
 ├── ARCHITECTURE.md             # 详细架构设计文档
+├── build.sh                    # 统一构建脚本（支持 x86/arm）
+├── start.sh                    # 服务部署脚本
 │
 ├── src/                        # 源代码目录
 │   ├── App.cpp                # 主程序入口
-│   │
 │   ├── common/                # 公共模块
-│   │   ├── MyController.hpp   # 配置加载控制器
-│   │   └── MyController.cpp
-│   │
 │   ├── camera/                # 相机管理模块
-│   │   ├── CameraManager.hpp  # 相机配置结构
-│   │   ├── MultiCameraManager.hpp  # 多相机管理器
-│   │   └── MultiCameraManager.cpp
-│   │
 │   ├── algorithms/            # 算法管理模块
-│   │   ├── Algorithm.hpp      # 算法基类接口
-│   │   ├── AlgorithmFactory.hpp    # 算法工厂
-│   │   ├── AlgorithmManager.hpp    # 算法管理器
-│   │   ├── AlgorithmManager.cpp
-│   │   ├── DetectionAlgorithm.hpp  # 检测算法实现
-│   │   └── processors/        # 预处理/后处理器
-│   │       ├── ProcessorFactory.hpp
-│   │       ├── Preprocessor.hpp
-│   │       └── Postprocessor.hpp
-│   │
 │   ├── inferEngine/           # 推理引擎模块
-│   │   ├── InferenceEngine.hpp     # 推理引擎主类
-│   │   ├── InferenceEngine.cpp
-│   │   ├── ModelInstancePool.hpp   # 共享算法池
-│   │   ├── ModelInstancePool.cpp
-│   │   ├── ExclusiveInstanceManager.hpp  # 独占算法管理
-│   │   └── ExclusiveInstanceManager.cpp
-│   │
 │   ├── deploy/                # NCNN 推理封装
-│   │   ├── NcnnInference.hpp  # NCNN 推理接口
-│   │   └── NcnnInference.cpp
-│   │
 │   ├── inotify/               # 文件监听模块
-│   │   ├── FileWatcher.hpp    # 文件监听器
-│   │   └── FileWatcher.cpp
-│   │
 │   ├── api/                   # HTTP API 模块
-│   │   ├── HttpApiServer.hpp  # HTTP 服务器
-│   │   ├── HttpApiServer.cpp
-│   │   └── InferenceSwitch.hpp # 推理开关控制
-│   │
 │   └── tools/                 # 工具类
-│       ├── Utils.hpp          # 通用工具函数
-│       ├── Utils.cpp
-│       └── LazyFileSink.hpp   # 延迟日志文件 sink
 │
-├── lib/                       # 第三方库
-│   ├── httplib.h              # cpp-httplib 头文件
-│   ├── install_ncnn/          # NCNN 库文件
-│   ├── install_inotify/       # inotify-cpp 库文件
-│   └── install_spdlog/        # spdlog 库文件
+├── lib/                        # 预编译依赖库（按架构分类）
+│   ├── amd/                    # x86_64 架构
+│   │   ├── install_ncnn/
+│   │   ├── install_opencv/
+│   │   ├── install_spdlog/
+│   │   ├── install_inotify/
+│   │   └── httplib.h
+│   └── arm/                    # aarch64 架构
+│       ├── install_ncnn/
+│       ├── install_opencv/
+│       ├── install_spdlog/
+│       ├── install_inotify/
+│       └── httplib.h
 │
-├── build/                     # CMake 构建输出目录
+├── cmake/                      # CMake 工具链文件
+│   └── toolchain-aarch64.cmake
 │
-└── workspace/                 # 运行时工作目录
-    ├── ncnn_demo              # 编译后的可执行文件
-    ├── configs/               # 配置文件
-    │   └── config.json        # 相机配置
-    ├── models/                # 模型文件
-    │   ├── model.json         # 模型配置
-    │   └── yolo11n/           # YOLO11 模型
-    │       ├── int8.param     # NCNN 参数文件
-    │       ├── int8.bin       # NCNN 权重文件
-    │       └── label.txt      # 类别标签
-    ├── logs/                  # 日志文件（自动生成）
-    └── output_results/        # 推理结果输出（自动生成）
+├── build_x86/                  # x86_64 构建目录（自动生成）
+├── build_aarch64/              # aarch64 构建目录（自动生成）
+│
+└── workspace/                  # 运行时工作目录
+    ├── ncnn_opencv_server      # 编译后的可执行文件
+    ├── configs/
+    │   └── config.json         # 相机配置
+    ├── models/
+    │   ├── model.json          # 模型配置
+    │   └── yolo11n/            # 模型文件
+    ├── logs/                   # 日志（自动生成）
+    └── output_results/         # 推理结果（自动生成）
 ```
 
 ---
@@ -297,12 +269,12 @@ sudo apt-get update && sudo apt-get install -y \
     build-essential \
     cmake \
     pkg-config \
-    libopencv-dev \
-    libspdlog-dev \
     nlohmann-json3-dev \
-    libcurl4-openssl-dev \
-    libomp-dev
+    libomp-dev \
+    libboost-dev
 ```
+
+> **说明**: 核心依赖库（NCNN、OpenCV、spdlog、inotify-cpp）已预编译在 `lib/` 目录下，无需系统安装。
 
 ### 3. 编译项目
 
@@ -310,17 +282,14 @@ sudo apt-get update && sudo apt-get install -y \
 # 进入项目目录
 cd ncnn_opencv_server
 
-# 创建并进入构建目录
-mkdir -p build && cd build
+# x86_64 本地编译（开发调试）
+./build.sh x86
 
-# 配置 CMake
-cmake ..
-
-# 编译（使用多核加速）
-make -j$(nproc)
+# 或 aarch64 交叉编译（嵌入式部署）
+./build.sh arm
 ```
 
-编译成功后，可执行文件位于 `workspace/ncnn_demo`。
+编译成功后，可执行文件位于 `workspace/ncnn_opencv_server`。
 
 ### 4. 配置系统
 
@@ -372,11 +341,12 @@ make -j$(nproc)
 ### 5. 运行服务
 
 ```bash
-# 进入工作目录
+# 方式一：直接运行
 cd workspace
+./ncnn_opencv_server
 
-# 运行服务
-./ncnn_demo
+# 方式二：部署为系统服务
+sudo ./start.sh
 ```
 
 ### 6. 测试推理
@@ -477,9 +447,23 @@ spdlog::set_level(spdlog::level::debug);
 
 ---
 
-## 🌐 HTTP API 接口
+## 🌐 HTTP 功能
 
-系统启动后会在 `8080` 端口提供 HTTP API 服务，用于运行时控制推理功能。
+### HTTP 服务端（API 接口）
+
+系统启动后会在 `9090` 端口提供 HTTP API 服务，用于运行时控制推理功能。
+
+### HTTP 客户端（外部调用）
+
+系统集成了 HTTP 客户端功能，用于：
+- **3D打印机控制**：当检测到异常时，自动向 Moonraker API 发送暂停打印命令
+- **外部系统集成**：支持向其他 HTTP 服务发送通知或控制指令
+
+> 💡 **技术实现**：使用 `cpp-httplib` 库进行 HTTP 请求，支持超时控制和错误处理
+
+---
+
+## 🔌 HTTP API 接口
 
 ### 推理开关控制
 
@@ -513,12 +497,12 @@ spdlog::set_level(spdlog::level::debug);
 
 ```bash
 # 关闭推理
-curl -X POST http://localhost:8080/api/inference/toggle \
+curl -X POST http://localhost:9090/api/inference/toggle \
   -H "Content-Type: application/json" \
   -d '{"enabled": false}'
 
 # 开启推理
-curl -X POST http://localhost:8080/api/inference/toggle \
+curl -X POST http://localhost:9090/api/inference/toggle \
   -H "Content-Type: application/json" \
   -d '{"enabled": true}'
 ```
@@ -615,23 +599,33 @@ perf report
 
 ### Q1: 编译时找不到 NCNN 库
 
-**解决方案**：确保 `lib/install_ncnn/` 目录存在且包含 NCNN 编译产物：
+**解决方案**：确保对应架构的库目录存在：
 
 ```bash
-lib/install_ncnn/
+# x86_64 编译检查
+lib/amd/install_ncnn/
+├── include/ncnn/
+└── lib/libncnn.a
+
+# aarch64 编译检查
+lib/arm/install_ncnn/
 ├── include/ncnn/
 └── lib/libncnn.a
 ```
 
-如果缺失，需要手动编译 NCNN：
+如果缺失，需要手动编译 NCNN（以 aarch64 为例）：
 
 ```bash
 git clone https://github.com/Tencent/ncnn.git
-cd ncnn
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=../../lib/install_ncnn ..
-make -j$(nproc)
-make install
+cd ncnn && mkdir build && cd build
+cmake \
+    -DCMAKE_SYSTEM_NAME=Linux \
+    -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+    -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+    -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+    -DCMAKE_INSTALL_PREFIX=../../lib/arm/install_ncnn \
+    ..
+make -j$(nproc) && make install
 ```
 
 ### Q2: 运行时无法检测到图像文件

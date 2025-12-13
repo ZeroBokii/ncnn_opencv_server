@@ -390,3 +390,30 @@ watcher.start([](const FileWatcher::FileEvent& event) {
 - ✅ 高并发：多相机独立推理、无锁设计
 - ✅ 可扩展：插件式算法、工厂模式、策略模式
 - ✅ 可维护：模块化设计、完善日志、错误处理
+- ✅ 跨平台：支持 x86_64 和 aarch64 架构，统一构建脚本
+
+---
+
+## 📦 依赖库管理
+
+项目采用预编译库方式管理核心依赖，按 CPU 架构分类存放：
+
+```
+lib/
+├── amd/                        # x86_64 架构预编译库
+│   ├── install_ncnn/           # NCNN 推理框架
+│   ├── install_opencv/         # OpenCV 图像处理
+│   ├── install_spdlog/         # 日志库
+│   ├── install_inotify/        # 文件监听库
+│   └── httplib.h               # HTTP 库（头文件）
+└── arm/                        # aarch64 架构预编译库
+    ├── install_ncnn/
+    ├── install_opencv/
+    ├── install_spdlog/
+    ├── install_inotify/
+    └── httplib.h
+```
+
+构建时通过 `LIB_ARCH` 参数自动选择对应架构的库：
+- `./build.sh x86` → 使用 `lib/amd/`
+- `./build.sh arm` → 使用 `lib/arm/`

@@ -41,7 +41,7 @@ void handleInferenceResult(
     // 如果有检测结果，保存可视化图像
     if (result.contains("detections") && !result["detections"].empty()) {
         Utils::saveVisualization(image, result, camera_id, algorithm_name);
-        /*
+
         // 防止短时间重复发送
         std::lock_guard<std::mutex> lock(g_pause_mutex);
         auto now = std::chrono::steady_clock::now();
@@ -64,7 +64,7 @@ void handleInferenceResult(
         } else {
             spdlog::debug("Pause cooldown active, {}s remaining", PAUSE_COOLDOWN_SECONDS - elapsed);
         }
-        */
+
     }
 }
 
@@ -134,7 +134,7 @@ void run(){
     }
     
     // 启动 HTTP API 服务器（用于推理开关控制）
-    auto http_server = std::make_unique<HttpApiServer>("0.0.0.0", 8080);
+    auto http_server = std::make_unique<HttpApiServer>("0.0.0.0", 9090);
     if (http_server->start()) {
         spdlog::info("✓ HTTP API 服务器已启动");
         spdlog::info("  - POST http://localhost:8080/api/inference/toggle");
