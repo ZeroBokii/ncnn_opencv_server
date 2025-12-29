@@ -18,12 +18,16 @@
 #include "inotify/FileWatcher.hpp"
 #include "tools/Utils.hpp"
 #include "tools/LazyFileSink.hpp"
+#include "tools/MqttPublisher.hpp"
 #include "api/HttpApiServer.hpp"
 #include "api/InferenceSwitch.hpp"
 
 static std::chrono::steady_clock::time_point g_last_pause_time;
 static std::mutex g_pause_mutex;
 static const int PAUSE_COOLDOWN_SECONDS = 5; 
+
+// 全局 MQTT 发布器
+static std::shared_ptr<MqttPublisher> g_mqtt_publisher; 
 
 void handleInferenceResult(
     const std::string& camera_id,
@@ -42,7 +46,12 @@ void handleInferenceResult(
     if (result.contains("detections") && !result["detections"].empty()) {
         Utils::saveVisualization(image, result, camera_id, algorithm_name);
 
-        // 防止短时间重复发送
+        // 发送 MQTT "检测到缺陷" 通知
+        if (g_mqtt_publisher) {
+            g_mqtt_publisher->publishDefectDetected();
+        }
+
+        // 防止短时间重复发送暂停指令
         std::lock_guard<std::mutex> lock(g_pause_mutex);
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - g_last_pause_time).count();
@@ -50,7 +59,6 @@ void handleInferenceResult(
         if (elapsed >= PAUSE_COOLDOWN_SECONDS) {
             const std::string MOONRAKER_URL = "http://localhost:7125";
             
-            // 异步发送暂停请求，不阻塞主推理流程
             static std::future<void> last_pause_future;
             last_pause_future = std::async(std::launch::async, [MOONRAKER_URL]() {
                 bool success = Utils::pausePrinter(MOONRAKER_URL);
@@ -64,7 +72,6 @@ void handleInferenceResult(
         } else {
             spdlog::debug("Pause cooldown active, {}s remaining", PAUSE_COOLDOWN_SECONDS - elapsed);
         }
-
     }
 }
 
@@ -78,6 +85,21 @@ void run(){
                                 ( o.o )    开发者: Torch
                                 > ^ <     
 )");
+    
+    // 初始化 MQTT 发布器
+    MqttPublisher::Config mqtt_config;
+    mqtt_config.broker_host = "127.0.0.1";
+    mqtt_config.broker_port = 1883;
+    mqtt_config.client_id = "ncnn_inference_server";
+    mqtt_config.topic = "opi/zero2/events/target_detected";
+    mqtt_config.qos = 1;
+    
+    g_mqtt_publisher = std::make_shared<MqttPublisher>(mqtt_config);
+    if (g_mqtt_publisher->connect()) {
+        spdlog::info("✓ MQTT 发布器已连接到 {}:{}", mqtt_config.broker_host, mqtt_config.broker_port);
+    } else {
+        spdlog::warn("MQTT 发布器连接失败，检测事件将不会通过 MQTT 发送");
+    }
     
     auto camera_configs = MyController::loadCameraConfigs("configs/config.json");
     if (camera_configs.empty()) {
@@ -137,7 +159,7 @@ void run(){
     auto http_server = std::make_unique<HttpApiServer>("0.0.0.0", 9090);
     if (http_server->start()) {
         spdlog::info("✓ HTTP API 服务器已启动");
-        spdlog::info("  - POST http://localhost:8080/api/inference/toggle");
+        spdlog::info("  - POST http://localhost:9090/api/inference/toggle");
     } else {
         spdlog::warn("HTTP API 服务器启动失败");
     }

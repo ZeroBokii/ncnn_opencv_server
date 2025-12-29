@@ -87,10 +87,9 @@ endif()
 
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
-# 抑制特定的警告
 add_compile_options(
     -Wno-deprecated-enum-enum-conversion
-    -Wno-nonnull  # 抑制 Boost concept_check 的空指针警告
+    -Wno-nonnull 
 )
 
 add_executable(ncnn_opencv_server ${SRC_FILES})
@@ -101,7 +100,6 @@ set_target_properties(ncnn_opencv_server PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/workspace
 )
 
-# Vulkan 相关库（可选）
 set(LINK_EXTRA)
 if(GLSLANG_LIBRARY AND SPIRV_LIBRARY)
     list(APPEND LINK_EXTRA ${GLSLANG_LIBRARY} ${SPIRV_LIBRARY})
@@ -110,7 +108,6 @@ else()
 endif()
 
 if(IS_AARCH64_CROSS)
-    # 交叉编译链接配置
     target_link_libraries(ncnn_opencv_server
         ${LINK_EXTRA}
         ncnn
@@ -119,18 +116,16 @@ if(IS_AARCH64_CROSS)
         opencv_imgcodecs
         inotify-cpp
         spdlog
+        mosquitto
         pthread
         dl
     )
-    # 手动添加 OpenMP 链接标志
     target_link_options(ncnn_opencv_server PRIVATE ${OPENMP_LINK_FLAGS})
     
-    # nlohmann_json 链接
     if(nlohmann_json_FOUND)
         target_link_libraries(ncnn_opencv_server nlohmann_json::nlohmann_json)
     endif()
 else()
-    # 本地编译链接配置
     target_link_libraries(ncnn_opencv_server
         ${LINK_EXTRA}
         ncnn
@@ -139,6 +134,7 @@ else()
         opencv_imgcodecs
         inotify-cpp
         spdlog
+        mosquitto
         OpenMP::OpenMP_CXX
         nlohmann_json::nlohmann_json
     )

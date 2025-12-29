@@ -42,11 +42,13 @@
 
 ```
 main() → 初始化日志 → run()
+  ├─ 初始化 MQTT 发布器
   ├─ 加载配置 (MyController)
   ├─ 创建 AlgorithmManager
   ├─ 创建 InferenceEngine
   ├─ 创建 MultiCameraManager
   ├─ 注册推理回调
+  ├─ 启动 HTTP API 服务器
   ├─ 启动所有相机
   └─ 进入主事件循环
 ```
@@ -226,6 +228,36 @@ using EventCallback = std::function<void(const FileEvent&)>;
 
 ---
 
+### 9. MQTT 发布器 (MqttPublisher)
+
+**职责**：
+- 连接 MQTT Broker
+- 发送缺陷检测通知
+- 自动断线重连
+
+**接口**：
+
+```cpp
+class MqttPublisher {
+public:
+    bool connect();
+    void disconnect();
+    bool isConnected() const;
+    bool publishDefectDetected();  // 发送"检测到缺陷"
+};
+```
+
+**工作流程**：
+
+```
+检测到缺陷 → publishDefectDetected()
+           → mosquitto_publish()
+           → opi/zero2/events/target_detected
+           → "检测到缺陷"
+```
+
+---
+
 ## 📊 数据流程
 
 ### 完整推理流程
@@ -258,7 +290,8 @@ using EventCallback = std::function<void(const FileEvent&)>;
 10. handleInferenceResult()
     ├─ 输出 JSON 到控制台
     ├─ 保存可视化结果
-    └─ 可选：调用外部 API
+    ├─ MQTT 发送"检测到缺陷"通知
+    └─ HTTP 发送暂停打印指令
 ```
 
 ---
@@ -276,9 +309,17 @@ using EventCallback = std::function<void(const FileEvent&)>;
   ├─ inotify 事件监听
   └─ 触发推理回调
 
+MQTT 网络线程 (mosquitto_loop)
+  ├─ 消息发送
+  ├─ 接收 ACK
+  └─ 自动重连
+
 推理线程池 (OpenMP)
   ├─ 并行图像预处理
   └─ NCNN 推理（多线程）
+
+暂停请求线程 (std::async)
+  └─ HTTP POST 暂停指令
 ```
 
 ### 同步机制

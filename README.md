@@ -85,6 +85,12 @@
 - **线程安全**：原子操作保证并发安全
 - **即时生效**：无需重启服务
 
+### 7. MQTT 消息通知
+
+- **缺陷检测通知**：检测到缺陷时通过 MQTT 发布消息
+- **自动重连**：断线后自动重连（1~10秒指数回退）
+- **非阻塞发送**：后台线程处理网络，不影响推理性能
+
 ---
 
 ## 🏗️ 系统架构
@@ -193,6 +199,7 @@
 | **JSON 解析** | nlohmann_json | >= 3.0 | 配置和结果序列化 |
 | **文件监听** | inotify-cpp | latest | Linux 文件监控 |
 | **HTTP 库** | cpp-httplib | latest | REST API 服务 & HTTP 客户端 |
+| **MQTT 库** | libmosquitto | latest | MQTT 消息发布 |
 | **并行计算** | OpenMP | latest | 多线程加速 |
 
 ---
@@ -271,7 +278,10 @@ sudo apt-get update && sudo apt-get install -y \
     pkg-config \
     nlohmann-json3-dev \
     libomp-dev \
-    libboost-dev
+    libboost-dev \
+    libmosquitto-dev \
+    mosquitto \
+    mosquitto-clients
 ```
 
 > **说明**: 核心依赖库（NCNN、OpenCV、spdlog、inotify-cpp）已预编译在 `lib/` 目录下，无需系统安装。
@@ -460,6 +470,61 @@ spdlog::set_level(spdlog::level::debug);
 - **外部系统集成**：支持向其他 HTTP 服务发送通知或控制指令
 
 > 💡 **技术实现**：使用 `cpp-httplib` 库进行 HTTP 请求，支持超时控制和错误处理
+
+---
+
+## 📡 MQTT 消息通知
+
+系统集成了 MQTT 发布功能，当检测到缺陷时自动发送通知消息。
+
+### 配置 Mosquitto Broker
+
+```bash
+# 安装
+sudo apt install -y mosquitto mosquitto-clients libmosquitto-dev
+
+# 配置 /etc/mosquitto/conf.d/local.conf
+listener 1883 127.0.0.1
+allow_anonymous true
+persistence true
+persistence_location /var/lib/mosquitto/
+autosave_interval 60
+
+# 启动服务
+sudo systemctl enable mosquitto
+sudo systemctl restart mosquitto
+```
+
+### MQTT 主题
+
+| 主题 | 说明 |
+|------|------|
+| `opi/zero2/events/target_detected` | 检测到缺陷时发送 |
+
+### 消息内容
+
+```
+检测到缺陷
+```
+
+### 订阅测试
+
+```bash
+mosquitto_sub -h 127.0.0.1 -t "opi/zero2/events/target_detected" -v
+```
+
+### 代码配置
+
+在 `App.cpp` 中可修改 MQTT 配置：
+
+```cpp
+MqttPublisher::Config mqtt_config;
+mqtt_config.broker_host = "127.0.0.1";
+mqtt_config.broker_port = 1883;
+mqtt_config.client_id = "ncnn_inference_server";
+mqtt_config.topic = "opi/zero2/events/target_detected";
+mqtt_config.qos = 1;
+```
 
 ---
 
