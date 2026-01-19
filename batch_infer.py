@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-批量推理脚本 - 使用NCNN执行YOLO11推理并生成YOLO格式标注文件
+批量推理脚本 - 使用NCNN执行YOLO11推理
+支持模块：
+  - annotate: 生成YOLO格式标注文件
+  - visualize: 根据推理结果画图保存
 """
 
 import os
@@ -9,6 +12,7 @@ import numpy as np
 import cv2
 import ncnn
 from pathlib import Path
+
 
 class Yolo11Detector:
     """YOLO11 NCNN推理器"""
@@ -22,7 +26,6 @@ class Yolo11Detector:
         self.reg_max = 16
         self.strides = [8, 16, 32]
         
-        # 加载NCNN模型
         self.net = ncnn.Net()
         self.net.opt.use_vulkan_compute = False
         self.net.load_param(param_path)
@@ -33,20 +36,13 @@ class Yolo11Detector:
     def preprocess(self, image: np.ndarray):
         """Letterbox预处理"""
         orig_h, orig_w = image.shape[:2]
-        
-        # 计算缩放比例
         scale = min(self.target_size / orig_w, self.target_size / orig_h)
         new_w = int(orig_w * scale)
         new_h = int(orig_h * scale)
-        
-        # 计算padding
         wpad = self.target_size - new_w
         hpad = self.target_size - new_h
         
-        # 缩放图像
         resized = cv2.resize(image, (new_w, new_h))
-        
-        # 添加padding (灰色填充114)
         top = hpad // 2
         bottom = hpad - top
         left = wpad // 2
@@ -54,14 +50,10 @@ class Yolo11Detector:
         padded = cv2.copyMakeBorder(resized, top, bottom, left, right, 
                                      cv2.BORDER_CONSTANT, value=(114, 114, 114))
         
-        # BGR -> RGB, 归一化
         rgb = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
-        
-        # 转换为ncnn.Mat
         mat_in = ncnn.Mat.from_pixels(rgb, ncnn.Mat.PixelType.PIXEL_RGB, 
                                        self.target_size, self.target_size)
         
-        # 归一化 /255
         mean_vals = [0.0, 0.0, 0.0]
         norm_vals = [1.0/255.0, 1.0/255.0, 1.0/255.0]
         mat_in.substract_mean_normalize(mean_vals, norm_vals)
@@ -69,30 +61,24 @@ class Yolo11Detector:
         return mat_in, scale, wpad, hpad, orig_w, orig_h
     
     def softmax(self, x):
-        """Softmax函数"""
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
     
     def decode_dfl(self, dfl_data):
-        """DFL解码"""
         prob = self.softmax(dfl_data)
         return np.sum(np.arange(self.reg_max) * prob)
     
     def sigmoid(self, x):
-        """Sigmoid函数"""
         return 1.0 / (1.0 + np.exp(-np.clip(x, -500, 500)))
     
     def postprocess(self, output, scale, wpad, hpad, orig_w, orig_h):
-        """YOLO11后处理"""
-        # output shape: [num_proposals, feat_dim]
         num_proposals = output.shape[0]
         feat_dim = output.shape[1]
-        num_classes = feat_dim - self.reg_max * 4  # 144 - 64 = 80
+        num_classes = feat_dim - self.reg_max * 4
         
         detections = []
         proposal_offset = 0
         
-        # 遍历不同stride
         for stride in self.strides:
             num_grid_x = self.target_size // stride
             num_grid_y = self.target_size // stride
@@ -104,8 +90,6 @@ class Yolo11Detector:
                     break
                 
                 pred_data = output[anchor_idx]
-                
-                # 解析类别分数
                 class_scores = pred_data[self.reg_max * 4:]
                 max_class_id = np.argmax(class_scores)
                 max_score = class_scores[max_class_id]
@@ -114,20 +98,17 @@ class Yolo11Detector:
                 if confidence < self.conf_threshold:
                     continue
                 
-                # DFL解码边界框
                 pred_ltrb = []
                 for k in range(4):
                     dfl_data = pred_data[k * self.reg_max:(k + 1) * self.reg_max]
                     dist = self.decode_dfl(dfl_data) * stride
                     pred_ltrb.append(dist)
                 
-                # 计算中心点
                 y = idx // num_grid_x
                 x = idx % num_grid_x
                 center_x = (x + 0.5) * stride
                 center_y = (y + 0.5) * stride
                 
-                # 计算边界框
                 x0 = center_x - pred_ltrb[0]
                 y0 = center_y - pred_ltrb[1]
                 x1 = center_x + pred_ltrb[2]
@@ -142,10 +123,8 @@ class Yolo11Detector:
             
             proposal_offset += num_grid
         
-        # NMS
         final_detections = self.apply_nms(detections)
         
-        # 还原到原始坐标
         boxes = []
         for det in final_detections:
             x_orig = (det['x'] - wpad / 2.0) / scale
@@ -153,7 +132,6 @@ class Yolo11Detector:
             w_orig = det['width'] / scale
             h_orig = det['height'] / scale
             
-            # 裁剪到图像边界
             x_orig = max(0, min(x_orig, orig_w - 1))
             y_orig = max(0, min(y_orig, orig_h - 1))
             x1 = x_orig
@@ -169,36 +147,28 @@ class Yolo11Detector:
         return boxes
     
     def apply_nms(self, detections):
-        """NMS非极大值抑制"""
         if not detections:
             return []
         
-        # 按置信度排序
         detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
-        
         suppressed = [False] * len(detections)
         result = []
         
         for i, det_i in enumerate(detections):
             if suppressed[i]:
                 continue
-            
             result.append(det_i)
-            
             for j in range(i + 1, len(detections)):
                 if suppressed[j]:
                     continue
-                
                 det_j = detections[j]
                 if det_i['class_id'] == det_j['class_id']:
                     iou = self.calculate_iou(det_i, det_j)
                     if iou > self.nms_threshold:
                         suppressed[j] = True
-        
         return result
     
     def calculate_iou(self, a, b):
-        """计算IoU"""
         x1 = max(a['x'], b['x'])
         y1 = max(a['y'], b['y'])
         x2 = min(a['x'] + a['width'], b['x'] + b['width'])
@@ -215,21 +185,47 @@ class Yolo11Detector:
         return inter_area / union_area if union_area > 0 else 0
     
     def infer(self, image: np.ndarray):
-        """执行推理"""
         mat_in, scale, wpad, hpad, orig_w, orig_h = self.preprocess(image)
-        
-        # 推理
         ex = self.net.create_extractor()
         ex.input("in0", mat_in)
         _, mat_out = ex.extract("out0")
-        
-        # 转换为numpy数组
         output = np.array(mat_out)
-        
-        # 后处理
         boxes = self.postprocess(output, scale, wpad, hpad, orig_w, orig_h)
-        
         return boxes
+
+
+# ==================== 模块：标注 ====================
+def module_annotate(image_files, detector, output_dir, class_id, labels):
+    """生成YOLO格式标注文件"""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    success_count = 0
+    detection_count = 0
+    
+    for img_path in image_files:
+        try:
+            image = cv2.imread(str(img_path))
+            if image is None:
+                print(f"无法读取: {img_path.name}")
+                continue
+            
+            img_h, img_w = image.shape[:2]
+            boxes = detector.infer(image)
+            
+            annotations = [to_yolo_format(box, img_w, img_h, class_id) for box in boxes]
+            
+            txt_path = Path(output_dir) / f"{img_path.stem}.txt"
+            with open(txt_path, 'w') as f:
+                for line in annotations:
+                    f.write(line + '\n')
+            
+            success_count += 1
+            detection_count += len(boxes)
+                
+        except Exception as e:
+            print(f"✗ {img_path.name}: {e}")
+    
+    print(f"[标注模块] 处理: {len(image_files)}, 成功: {success_count}, 检测: {detection_count}")
 
 
 def to_yolo_format(box, img_width, img_height, default_class_id=0):
@@ -239,7 +235,6 @@ def to_yolo_format(box, img_width, img_height, default_class_id=0):
     width = (box['right'] - box['left']) / img_width
     height = (box['bottom'] - box['top']) / img_height
     
-    # 限制在[0, 1]范围
     x_center = max(0, min(1, x_center))
     y_center = max(0, min(1, y_center))
     width = max(0, min(1, width))
@@ -248,8 +243,98 @@ def to_yolo_format(box, img_width, img_height, default_class_id=0):
     return f"{default_class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}"
 
 
+# ==================== 模块：可视化 ====================
+def module_visualize(image_files, detector, input_dir, labels):
+    """根据推理结果画图并保存到 out 文件夹"""
+    output_dir = Path(input_dir) / "out"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    success_count = 0
+    skip_count = 0
+    
+    for img_path in image_files:
+        try:
+            image = cv2.imread(str(img_path))
+            if image is None:
+                print(f"无法读取: {img_path.name}")
+                continue
+            
+            boxes = detector.infer(image)
+            
+            # 没有检测结果则跳过
+            if not boxes:
+                skip_count += 1
+                continue
+            
+            # 画图
+            vis_image = draw_detections(image, boxes, labels)
+            
+            # 保存到 out 文件夹
+            out_path = output_dir / img_path.name
+            cv2.imwrite(str(out_path), vis_image)
+            success_count += 1
+                
+        except Exception as e:
+            print(f"✗ {img_path.name}: {e}")
+    
+    print(f"[可视化模块] 处理: {len(image_files)}, 保存: {success_count}, 跳过(无检测): {skip_count}")
+
+
+def draw_detections(image, boxes, labels=None):
+    """在图像上绘制检测框"""
+    vis_image = image.copy()
+    
+    for box in boxes:
+        cls_id = box['class_id']
+        score = box['score']
+        left = int(box['left'])
+        top = int(box['top'])
+        right = int(box['right'])
+        bottom = int(box['bottom'])
+        
+        # 根据类别ID生成颜色
+        hue = (cls_id * 137) % 180
+        color = cv2.cvtColor(np.uint8([[[hue, 255, 255]]]), cv2.COLOR_HSV2BGR)[0][0]
+        color = (int(color[0]), int(color[1]), int(color[2]))
+        
+        # 获取标签名
+        if labels and 0 <= cls_id < len(labels):
+            label_text = labels[cls_id]
+        else:
+            label_text = f"class_{cls_id}"
+        
+        display_text = f"{label_text} {score:.2f}"
+        
+        # 画框
+        cv2.rectangle(vis_image, (left, top), (right, bottom), color, 2)
+        
+        # 画标签背景
+        (text_w, text_h), baseline = cv2.getTextSize(display_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+        label_top = max(top, text_h)
+        cv2.rectangle(vis_image, (left, label_top - text_h), (left + text_w, label_top + baseline), color, -1)
+        
+        # 画标签文字
+        cv2.putText(vis_image, display_text, (left, label_top), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+    
+    return vis_image
+
+
+def load_labels(label_path):
+    """加载标签文件"""
+    if not label_path or not os.path.exists(label_path):
+        return None
+    
+    labels = []
+    with open(label_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                labels.append(line)
+    return labels if labels else None
+
+
 def get_supported_extensions():
-    """获取支持的图片扩展名"""
     return {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff', '.tif'}
 
 
@@ -258,11 +343,13 @@ def main():
     parser.add_argument('--input', '-i', default='/home/torch/images',
                         help='输入图片目录 (默认: /home/torch/images)')
     parser.add_argument('--output', '-o', default='/home/torch/labels',
-                        help='输出标注目录 (默认: /home/torch/labels)')
+                        help='标注输出目录 (默认: /home/torch/labels)')
     parser.add_argument('--param', default='/home/torch/development/ncnn_opencv_server/workspace/models/3dv11n-cfg-v3/best.ncnn.param',
                         help='NCNN param文件路径')
     parser.add_argument('--bin', default='/home/torch/development/ncnn_opencv_server/workspace/models/3dv11n-cfg-v3/best.ncnn.bin',
                         help='NCNN bin文件路径')
+    parser.add_argument('--labels', default=None,
+                        help='标签文件路径 (用于可视化显示类别名)')
     parser.add_argument('--conf', type=float, default=0.5,
                         help='置信度阈值 (默认: 0.5)')
     parser.add_argument('--nms', type=float, default=0.45,
@@ -272,15 +359,21 @@ def main():
     parser.add_argument('--size', type=int, default=640,
                         help='输入尺寸 (默认: 640)')
     
+    # 模块开关
+    parser.add_argument('--annotate', action='store_true',
+                        help='启用标注模块 (生成YOLO格式txt)')
+    parser.add_argument('--visualize', action='store_true',
+                        help='启用可视化模块 (画图保存到out文件夹)')
+    
     args = parser.parse_args()
     
-    # 检查输入目录
+    # 如果没有指定任何模块，默认启用标注模块
+    if not args.annotate and not args.visualize:
+        args.annotate = True
+    
     if not os.path.exists(args.input):
         print(f"错误: 输入目录不存在: {args.input}")
         return
-    
-    # 创建输出目录
-    os.makedirs(args.output, exist_ok=True)
     
     # 初始化检测器
     detector = Yolo11Detector(
@@ -291,11 +384,12 @@ def main():
         target_size=args.size
     )
     
+    # 加载标签
+    labels = load_labels(args.labels)
+    
     print(f"输入目录: {args.input}")
-    print(f"输出目录: {args.output}")
     print(f"置信度阈值: {args.conf}")
-    print(f"NMS阈值: {args.nms}")
-    print(f"默认类别ID: {args.class_id}")
+    print(f"启用模块: {'标注 ' if args.annotate else ''}{'可视化' if args.visualize else ''}")
     print("-" * 50)
     
     # 获取所有图片
@@ -308,45 +402,16 @@ def main():
         return
     
     print(f"找到 {len(image_files)} 张图片")
-    print("开始批量推理...")
     
-    success_count = 0
-    detection_count = 0
+    # 执行模块
+    if args.annotate:
+        module_annotate(image_files, detector, args.output, args.class_id, labels)
     
-    for img_path in image_files:
-        try:
-            # 读取图片
-            image = cv2.imread(str(img_path))
-            if image is None:
-                print(f"无法读取: {img_path.name}")
-                continue
-            
-            img_h, img_w = image.shape[:2]
-            
-            # 推理
-            boxes = detector.infer(image)
-            
-            # 转换为YOLO格式
-            annotations = [to_yolo_format(box, img_w, img_h, args.class_id) 
-                          for box in boxes]
-            
-            # 保存标注文件（无论是否有检测结果）
-            txt_path = Path(args.output) / f"{img_path.stem}.txt"
-            with open(txt_path, 'w') as f:
-                for line in annotations:
-                    f.write(line + '\n')
-            
-            success_count += 1
-            detection_count += len(boxes)
-                
-        except Exception as e:
-            print(f"✗ {img_path.name}: {e}")
+    if args.visualize:
+        module_visualize(image_files, detector, args.input, labels)
     
     print("-" * 50)
-    print(f"批量推理完成:")
-    print(f"  处理图片: {len(image_files)}")
-    print(f"  成功: {success_count}")
-    print(f"  检测目标总数: {detection_count}")
+    print("批量推理完成")
 
 
 if __name__ == '__main__':

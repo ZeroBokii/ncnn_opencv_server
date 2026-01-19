@@ -3,9 +3,9 @@
         {
             "type": "Detection",
             "name": "noodle",
-            "model_param": "./models/3dv11n-cfg-v3/best.ncnn.param",
-            "model_bin": "./models/3dv11n-cfg-v3/best.ncnn.bin",
-            "label_path": "./models/3dv11n-cfg-v3/label.txt",
+            "model_param": "./models/3dv26n-cfg-v1/best.ncnn.param",
+            "model_bin": "./models/3dv26n-cfg-v1/best.ncnn.bin",
+            "label_path": "./models/3dv11n-cfg-v4/label.txt",
             "preprocess": "yolo11",
             "in_name": "in0",
             "out_name": "out0",

@@ -5,22 +5,37 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ============================================================================
+# 交叉编译配置（根据 LIB_ARCH 参数自动设置）
+# ============================================================================
 if(NOT DEFINED LIB_ARCH)
-    if(CMAKE_CROSSCOMPILING AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-        set(LIB_ARCH "arm")
-    else()
-        set(LIB_ARCH "amd")
-    endif()
+    set(LIB_ARCH "amd")
 endif()
 
-if(CMAKE_CROSSCOMPILING AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+if(LIB_ARCH STREQUAL "arm")
+    # aarch64 交叉编译配置
+    set(CMAKE_SYSTEM_NAME Linux)
+    set(CMAKE_SYSTEM_PROCESSOR aarch64)
+    
+    set(CROSS_COMPILE_PREFIX aarch64-linux-gnu-)
+    set(CMAKE_C_COMPILER ${CROSS_COMPILE_PREFIX}gcc)
+    set(CMAKE_CXX_COMPILER ${CROSS_COMPILE_PREFIX}g++)
+    set(CMAKE_AR ${CROSS_COMPILE_PREFIX}ar)
+    set(CMAKE_RANLIB ${CROSS_COMPILE_PREFIX}ranlib)
+    set(CMAKE_STRIP ${CROSS_COMPILE_PREFIX}strip)
+    
+    set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+    
+    set(IS_AARCH64_CROSS TRUE)
     message(STATUS "=== Cross-compiling for aarch64 ===")
     message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
     message(STATUS "CXX Compiler: ${CMAKE_CXX_COMPILER}")
-    set(IS_AARCH64_CROSS TRUE)
 else()
-    message(STATUS "=== Native build for x86_64 ===")
     set(IS_AARCH64_CROSS FALSE)
+    message(STATUS "=== Native build for x86_64 ===")
 endif()
 
 message(STATUS "Library architecture: ${LIB_ARCH}")
