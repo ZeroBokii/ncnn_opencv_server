@@ -17,6 +17,7 @@
 - [快速开始](#快速开始)
 - [配置说明](#配置说明)
 - [部署指南](#部署指南)
+- [批量推理工具](#批量推理工具)
 - [开发指南](#开发指南)
 - [常见问题](#常见问题)
 
@@ -212,8 +213,8 @@ ncnn_opencv_server/
 ├── README.md                   # 项目说明文档（本文件）
 ├── DEPLOYMENT.md               # 部署和服务配置指南
 ├── ARCHITECTURE.md             # 详细架构设计文档
+├── Project_Handover.md         # 项目交接文档
 ├── build.sh                    # 统一构建脚本（支持 x86/arm）
-├── start.sh                    # 服务部署脚本
 │
 ├── src/                        # 源代码目录
 │   ├── App.cpp                # 主程序入口
@@ -225,6 +226,11 @@ ncnn_opencv_server/
 │   ├── inotify/               # 文件监听模块
 │   ├── api/                   # HTTP API 模块
 │   └── tools/                 # 工具类
+│
+├── scripts/                    # 脚本目录
+│   ├── start.sh               # 服务部署脚本
+│   ├── batch_infer.py         # 批量推理工具
+│   └── manage_arm64.sh        # ARM64 管理脚本
 │
 ├── lib/                        # 预编译依赖库（按架构分类）
 │   ├── amd/                    # x86_64 架构
@@ -240,9 +246,6 @@ ncnn_opencv_server/
 │       ├── install_inotify/
 │       └── httplib.h
 │
-├── cmake/                      # CMake 工具链文件
-│   └── toolchain-aarch64.cmake
-│
 ├── build_x86/                  # x86_64 构建目录（自动生成）
 ├── build_aarch64/              # aarch64 构建目录（自动生成）
 │
@@ -252,7 +255,7 @@ ncnn_opencv_server/
     │   └── config.json         # 相机配置
     ├── models/
     │   ├── model.json          # 模型配置
-    │   └── yolo11n/            # 模型文件
+    │   └── <model_folders>/    # 模型文件目录
     ├── logs/                   # 日志（自动生成）
     └── output_results/         # 推理结果（自动生成）
 ```
@@ -588,6 +591,82 @@ curl -X POST http://localhost:9090/api/inference/toggle \
 - ✅ Systemd 服务配置（自启动）
 - ✅ 日志管理和故障排查
 - ✅ 性能优化建议
+
+项目交接请参考 **[Project_Handover.md](./Project_Handover.md)**，包含完整的项目交接信息。
+
+---
+
+## 🧪 批量推理工具
+
+`scripts/batch_infer.py` 是一个独立的 Python 批量推理脚本，可用于模型测试、批量标注和结果可视化。
+
+### 依赖安装
+
+```bash
+pip install numpy opencv-python ncnn
+```
+
+### 使用方法
+
+```bash
+# 基本用法（默认启用标注模块）
+python scripts/batch_infer.py -i /path/to/images -o /path/to/labels
+
+# 启用可视化模块（画图保存到 input/out 文件夹）
+python scripts/batch_infer.py -i /path/to/images --visualize
+
+# 同时启用标注和可视化
+python scripts/batch_infer.py -i /path/to/images -o /path/to/labels --annotate --visualize
+
+# 指定模型和参数
+python scripts/batch_infer.py \
+    -i /path/to/images \
+    --param /path/to/model.param \
+    --bin /path/to/model.bin \
+    --conf 0.5 \
+    --nms 0.45
+```
+
+### 参数说明
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--input, -i` | `/home/torch/images` | 输入图片目录 |
+| `--output, -o` | `/home/torch/labels` | 标注输出目录 |
+| `--param` | 内置路径 | NCNN param 文件路径 |
+| `--bin` | 内置路径 | NCNN bin 文件路径 |
+| `--labels` | None | 标签文件路径（用于可视化显示类别名） |
+| `--conf` | 0.5 | 置信度阈值 |
+| `--nms` | 0.45 | NMS 阈值 |
+| `--class-id` | 0 | 标注时使用的默认类别 ID |
+| `--size` | 640 | 输入尺寸 |
+| `--annotate` | False | 启用标注模块 |
+| `--visualize` | False | 启用可视化模块 |
+
+### 功能模块
+
+**1. 标注模块 (--annotate)**
+- 对输入目录中的所有图片执行推理
+- 生成 YOLO 格式的 `.txt` 标注文件（归一化坐标）
+- 输出到 `--output` 指定的目录
+
+**2. 可视化模块 (--visualize)**
+- 在图像上绘制检测框和置信度
+- 保存到输入目录下的 `out/` 子文件夹
+- 无检测结果的图片会跳过
+
+### 典型使用场景
+
+```bash
+# 场景1：测试新模型是否正常工作
+python scripts/batch_infer.py -i /path/to/test_images --visualize
+
+# 场景2：为训练数据生成预标注
+python scripts/batch_infer.py -i /path/to/train_images -o /path/to/labels --annotate
+
+# 场景3：使用低置信度阈值检查模型召回率
+python scripts/batch_infer.py -i /path/to/images --visualize --conf 0.3
+```
 
 ---
 

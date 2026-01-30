@@ -2,7 +2,4 @@ build/
 build_aarch64/
 build_x86/
 camera_top/
-lib/
 workspace/ncnn_opencv_server
-workspace/models/*
-!workspace/models/model.json
