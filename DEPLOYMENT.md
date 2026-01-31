@@ -69,7 +69,7 @@ ncnn_opencv_server/
 │       ├── install_inotify/
 │       └── httplib.h
 ├── build.sh                    # 统一构建脚本
-├── start.sh                    # 服务部署脚本
+├── install.sh                  # 服务部署脚本
 └── workspace/
     ├── ncnn_opencv_server      # 编译输出的可执行文件
     ├── configs/
@@ -113,10 +113,10 @@ ncnn_opencv_server/
 
 ## 部署为系统服务
 
-编译完成后，使用 `start.sh` 将程序注册为 systemd 服务：
+编译完成后，使用 `install.sh` 将程序注册为 systemd 服务：
 
 ```bash
-sudo ./start.sh
+sudo ./install.sh
 ```
 
 该脚本会：
@@ -170,7 +170,7 @@ tar -czvf ncnn_server_arm.tar.gz \
     workspace/configs \
     workspace/models \
     lib/arm \
-    start.sh
+    scripts/install.sh
 ```
 
 ### 3. 传输到目标设备
@@ -189,7 +189,7 @@ cd ncnn_opencv_server
 export LD_LIBRARY_PATH=$PWD/lib/arm/install_opencv/lib:$LD_LIBRARY_PATH
 
 # 部署为服务
-sudo ./start.sh
+sudo ./scripts/install.sh
 ```
 
 ---

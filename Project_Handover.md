@@ -329,7 +329,7 @@ cd workspace
 
 ```bash
 # 部署为 systemd 服务（需要 root 权限）
-sudo ./scripts/start.sh
+sudo ./scripts/install.sh
 ```
 
 ### 服务管理命令
@@ -368,7 +368,7 @@ tar -czvf ncnn_server_arm.tar.gz \
     workspace/configs \
     workspace/models \
     lib/arm \
-    scripts/start.sh
+    scripts/install.sh
 
 # 3. 传输到目标设备
 scp ncnn_server_arm.tar.gz user@target_ip:/home/user/
@@ -376,7 +376,7 @@ scp ncnn_server_arm.tar.gz user@target_ip:/home/user/
 # 4. 在目标设备上解压并部署
 tar -xzvf ncnn_server_arm.tar.gz
 cd ncnn_opencv_server
-sudo ./scripts/start.sh
+sudo ./scripts/install.sh
 ```
 
 ---
@@ -450,7 +450,7 @@ mosquitto_sub -h 127.0.0.1 -t "opi/zero2/events/target_detected" -v
 | 算法工厂 | [src/algorithms/AlgorithmFactory.hpp](src/algorithms/AlgorithmFactory.hpp) | ⭐⭐ | 添加新算法时修改 |
 | 多相机管理 | [src/camera/MultiCameraManager.hpp](src/camera/MultiCameraManager.hpp) | ⭐⭐ | 相机生命周期管理 |
 | 构建脚本 | [build.sh](build.sh) | ⭐⭐ | 编译命令 |
-| 部署脚本 | [scripts/start.sh](scripts/start.sh) | ⭐⭐ | 服务部署 |
+| 部署脚本 | [scripts/install.sh](scripts/install.sh) | ⭐⭐ | 服务部署 |
 | CMake 配置 | [CMakeLists.txt](CMakeLists.txt) | ⭐⭐ | 构建配置 |
 
 ### 扩展开发时需要修改的文件

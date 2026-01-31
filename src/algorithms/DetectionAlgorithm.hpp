@@ -36,7 +36,7 @@ public:
             }
             
             try {
-                postprocessor_ = algorithms::processors::PostprocessorFactory::create(preprocess, 0.5f, 0.45f);
+                postprocessor_ = algorithms::processors::PostprocessorFactory::create(preprocess, 0.75f, 0.45f);
                 if (!postprocessor_) {
                     throw std::runtime_error("Postprocessor creation returned nullptr");
                 }

@@ -2,4 +2,3 @@ build/
 build_aarch64/
 build_x86/
 camera_top/
-workspace/ncnn_opencv_server

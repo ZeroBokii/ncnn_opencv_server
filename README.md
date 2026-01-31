@@ -228,7 +228,7 @@ ncnn_opencv_server/
 │   └── tools/                 # 工具类
 │
 ├── scripts/                    # 脚本目录
-│   ├── start.sh               # 服务部署脚本
+│   ├── install.sh             # 服务部署脚本
 │   ├── batch_infer.py         # 批量推理工具
 │   └── manage_arm64.sh        # ARM64 管理脚本
 │
@@ -359,7 +359,7 @@ cd workspace
 ./ncnn_opencv_server
 
 # 方式二：部署为系统服务
-sudo ./start.sh
+sudo ./install.sh
 ```
 
 ### 6. 测试推理

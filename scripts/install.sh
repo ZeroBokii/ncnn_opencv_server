@@ -21,11 +21,10 @@ echo ""
 # 检查 root 权限
 if [ "$EUID" -ne 0 ]; then 
     echo "❌ 错误: 需要 root 权限来创建系统服务"
-    echo "请使用: sudo ./start.sh"
+    echo "请使用: sudo ./install.sh"
     exit 1
 fi
 
-# 检查可执行文件是否存在
 echo "[1/5] 检查可执行文件..."
 if [ ! -f "$EXECUTABLE" ]; then
     echo "❌ 错误: 可执行文件不存在: $EXECUTABLE"
@@ -38,7 +37,6 @@ fi
 echo "✅ 可执行文件存在"
 echo ""
 
-# 检查配置文件
 echo "[2/5] 检查配置文件..."
 CONFIG_FILE="${WORKSPACE_DIR}/configs/config.json"
 MODEL_FILE="${WORKSPACE_DIR}/models/model.json"
@@ -53,10 +51,8 @@ fi
 echo "✅ 配置检查完成"
 echo ""
 
-# 停止现有服务（如果存在）
 systemctl stop $SERVICE_NAME 2>/dev/null
 
-# 检测库架构目录
 LIB_DIR=""
 if [ -d "${CURRENT_DIR}/lib/arm" ]; then
     LIB_DIR="${CURRENT_DIR}/lib/arm"
@@ -64,20 +60,35 @@ elif [ -d "${CURRENT_DIR}/lib/amd" ]; then
     LIB_DIR="${CURRENT_DIR}/lib/amd"
 fi
 
-# 安装动态库到系统
 echo "[3/6] 安装动态库到系统..."
 if [ -n "$LIB_DIR" ]; then
-    cp -a ${LIB_DIR}/install_opencv/lib/lib* /usr/local/lib/ 2>/dev/null
-    cp -a ${LIB_DIR}/install_inotify/lib/lib* /usr/local/lib/ 2>/dev/null
-    cp -a ${LIB_DIR}/install_spdlog/lib/lib* /usr/local/lib/ 2>/dev/null
-    ldconfig
-    echo "✅ 动态库已安装到 /usr/local/lib/"
-else
-    echo "⚠️  未找到库目录，跳过动态库安装"
-fi
-echo ""
+    TARGET_DIRS=("install_opencv" "install_inotify" "install_spdlog")
+    
+    for dir in "${TARGET_DIRS[@]}"; do
+        if [ -d "${LIB_DIR}/$dir/lib" ]; then
+            echo "正在同步 $dir..."
+            sudo cp -rdf ${LIB_DIR}/$dir/lib/lib* /usr/local/lib/ 2>/dev/null
+        fi
+    done
 
-# 创建 systemd 服务文件
+    echo "正在创建 OpenCV 符号链接..."
+    cd /usr/local/lib
+    for lib in libopencv_core libopencv_imgproc libopencv_imgcodecs; do
+        if [ -f "${lib}.so.4.10.0" ]; then
+            sudo rm -f ${lib}.so.410 ${lib}.so 2>/dev/null
+            sudo ln -sf ${lib}.so.4.10.0 ${lib}.so.410
+            sudo ln -sf ${lib}.so.410 ${lib}.so
+            echo "  ✓ ${lib} 链接已创建"
+        fi
+    done
+    cd - > /dev/null
+
+    sudo ldconfig
+    echo "✅ 动态库已安装并成功刷新缓存"
+else
+    echo "⚠️ 未找到库目录，跳过动态库安装"
+fi
+
 echo "[4/6] 创建 systemd 服务文件..."
 cat > "$SERVICE_FILE" << EOF
 [Unit]
