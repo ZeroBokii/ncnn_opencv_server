@@ -69,7 +69,8 @@ ncnn_opencv_server/
 │       ├── install_inotify/
 │       └── httplib.h
 ├── build.sh                    # 统一构建脚本
-├── install.sh                  # 服务部署脚本
+├── scripts/
+│   └── install.sh              # 服务部署脚本
 └── workspace/
     ├── ncnn_opencv_server      # 编译输出的可执行文件
     ├── configs/
@@ -116,7 +117,8 @@ ncnn_opencv_server/
 编译完成后，使用 `install.sh` 将程序注册为 systemd 服务：
 
 ```bash
-sudo ./install.sh
+# 在项目根目录执行
+sudo ./scripts/install.sh
 ```
 
 该脚本会：
@@ -166,6 +168,7 @@ sudo systemctl daemon-reload
 # 在项目根目录执行，使用 --transform 添加顶层目录
 tar -czvf ncnn_server_arm.tar.gz \
     --transform 's,^,ncnn_opencv_server/,' \
+    --transform 's,scripts/,,' \
     workspace/ncnn_opencv_server \
     workspace/configs \
     workspace/models \
@@ -185,11 +188,8 @@ scp ncnn_server_arm.tar.gz ideaformer@192.168.1.94:/home/ideaformer/
 tar -xzvf ncnn_server_arm.tar.gz
 cd ncnn_opencv_server
 
-# 设置动态库路径（如果使用动态链接）
-export LD_LIBRARY_PATH=$PWD/lib/arm/install_opencv/lib:$LD_LIBRARY_PATH
-
 # 部署为服务
-sudo ./scripts/install.sh
+sudo ./install.sh
 ```
 
 ---

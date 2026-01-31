@@ -46,7 +46,7 @@ void handleInferenceResult(
     if (result.contains("detections") && !result["detections"].empty()) {
         Utils::saveVisualization(image, result, camera_id, algorithm_name);
 
-        /*
+        
         if (g_mqtt_publisher) {
             g_mqtt_publisher->publishDefectDetected();
         }
@@ -72,7 +72,7 @@ void handleInferenceResult(
         } else {
             spdlog::debug("Pause cooldown active, {}s remaining", PAUSE_COOLDOWN_SECONDS - elapsed);
         }
-        */
+        
     }
 }
 

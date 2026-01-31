@@ -359,7 +359,7 @@ cd workspace
 ./ncnn_opencv_server
 
 # 方式二：部署为系统服务
-sudo ./install.sh
+sudo ./scripts/install.sh
 ```
 
 ### 6. 测试推理

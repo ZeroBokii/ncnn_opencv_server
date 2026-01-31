@@ -25,7 +25,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo "[1/5] 检查可执行文件..."
+echo "[1/6] 检查可执行文件..."
 if [ ! -f "$EXECUTABLE" ]; then
     echo "❌ 错误: 可执行文件不存在: $EXECUTABLE"
     echo ""
@@ -37,7 +37,7 @@ fi
 echo "✅ 可执行文件存在"
 echo ""
 
-echo "[2/5] 检查配置文件..."
+echo "[2/6] 检查配置文件..."
 CONFIG_FILE="${WORKSPACE_DIR}/configs/config.json"
 MODEL_FILE="${WORKSPACE_DIR}/models/model.json"
 

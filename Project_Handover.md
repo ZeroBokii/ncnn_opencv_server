@@ -364,6 +364,7 @@ sudo systemctl daemon-reload
 # 2. 打包部署文件
 tar -czvf ncnn_server_arm.tar.gz \
     --transform 's,^,ncnn_opencv_server/,' \
+    --transform 's,scripts/,,' \
     workspace/ncnn_opencv_server \
     workspace/configs \
     workspace/models \
@@ -376,7 +377,7 @@ scp ncnn_server_arm.tar.gz user@target_ip:/home/user/
 # 4. 在目标设备上解压并部署
 tar -xzvf ncnn_server_arm.tar.gz
 cd ncnn_opencv_server
-sudo ./scripts/install.sh
+sudo ./install.sh
 ```
 
 ---
