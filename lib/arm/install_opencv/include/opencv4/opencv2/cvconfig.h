@@ -69,7 +69,7 @@
 /* #undef HAVE_IPP_IW_LL */
 
 /* JPEG-2000 codec */
-#define HAVE_OPENJPEG
+/* #undef HAVE_OPENJPEG */
 /* #undef HAVE_JASPER */
 
 /* AVIF codec */
@@ -90,7 +90,7 @@
 /* #undef HAVE_NVCUVENC */
 
 /* OpenCL Support */
-/* #undef HAVE_OPENCL */
+#define HAVE_OPENCL
 /* #undef HAVE_OPENCL_STATIC */
 /* #undef HAVE_OPENCL_SVM */
 

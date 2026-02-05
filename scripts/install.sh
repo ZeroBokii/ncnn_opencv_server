@@ -53,6 +53,16 @@ echo ""
 
 systemctl stop $SERVICE_NAME 2>/dev/null
 
+echo "[3/8] 安装系统依赖..."
+apt-get update -qq
+apt-get install -y libmosquitto-dev > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "✅ libmosquitto-dev 已安装"
+else
+    echo "⚠️  警告: libmosquitto-dev 安装失败，MQTT 功能可能不可用"
+fi
+echo ""
+
 LIB_DIR=""
 if [ -d "${CURRENT_DIR}/lib/arm" ]; then
     LIB_DIR="${CURRENT_DIR}/lib/arm"
@@ -60,7 +70,7 @@ elif [ -d "${CURRENT_DIR}/lib/amd" ]; then
     LIB_DIR="${CURRENT_DIR}/lib/amd"
 fi
 
-echo "[3/6] 安装动态库到系统..."
+echo "[4/8] 安装动态库到系统..."
 if [ -n "$LIB_DIR" ]; then
     TARGET_DIRS=("install_opencv" "install_inotify" "install_spdlog")
     
@@ -89,7 +99,7 @@ else
     echo "⚠️ 未找到库目录，跳过动态库安装"
 fi
 
-echo "[4/6] 创建 systemd 服务文件..."
+echo "[5/8] 创建 systemd 服务文件..."
 cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=NCNN OpenCV Inference Server
@@ -115,7 +125,7 @@ fi
 echo ""
 
 # 重载 systemd 配置并启用服务
-echo "[5/6] 配置 systemd 服务..."
+echo "[6/8] 配置 systemd 服务..."
 chmod +x "$EXECUTABLE"
 systemctl daemon-reload
 systemctl enable $SERVICE_NAME
@@ -123,7 +133,7 @@ echo "✅ 服务已启用开机自启动"
 echo ""
 
 # 启动服务
-echo "[6/6] 启动服务..."
+echo "[7/8] 启动服务..."
 systemctl start $SERVICE_NAME
 
 if [ $? -eq 0 ]; then

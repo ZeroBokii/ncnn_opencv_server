@@ -118,7 +118,7 @@ ncnn_opencv_server/
 
 ```bash
 # 在项目根目录执行
-sudo ./scripts/install.sh
+sudo ./install.sh
 ```
 
 该脚本会：
